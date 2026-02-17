@@ -25,41 +25,29 @@ Conflict rule: files from the first folder are kept when both folders contain th
 - If tokenizer IDs exceed the model vocab size (`max_id >= vocab_size`), it removes `tokenizer.json` and prints a reason to keep GGUF conversion from failing.
 - When no fix is needed (or parsing fails), it reports why the tokenizer fix was skipped.
 
-
 ## Publish GGUF to GitHub
 
-`*.gguf` files are now configured for Git LFS via `.gitattributes`, so they can be committed and pushed without being blocked by `.gitignore`.
+GGUF files are tracked through Git LFS (`*.gguf filter=lfs ...`) via `.gitattributes`.
 
-Example:
-
-```bash
-git lfs install
-git add .gitattributes sexygpt-3.5-turbo-uncensored.gguf
-git commit -m "Add GGUF artifact"
-git push origin <branch>
-```
-
-If your remote does not support LFS, upload the GGUF as a GitHub Release asset instead.
-
-
-## Still not visible on GitHub? (Checklist)
-
-If GGUF still does not appear in your GitHub repo, usually one of these is the reason:
-
-1. The GGUF file is not present locally.
-2. The file was not committed.
-3. No `origin` remote is configured.
-4. Push/authentication has not completed.
-
-Quick flow:
+### Fast path
 
 ```bash
 # from repo root
-./scripts/publish_gguf.sh sexygpt-3.5-turbo-uncensored.gguf "Add GGUF artifact"
-# then push with the printed command
+./scripts/publish_gguf.sh sexygpt-3.5-turbo-uncensored.gguf "Add GGUF artifact" --push
 ```
 
-Manual verification commands:
+If you omit `--push`, the script still commits and prints the exact push command.
+
+### If GGUF is still not visible on GitHub
+
+Check these in order:
+
+1. GGUF file exists locally.
+2. GGUF file was committed.
+3. `origin` remote is configured.
+4. Push/authentication succeeded.
+
+Verification commands:
 
 ```bash
 git status --short

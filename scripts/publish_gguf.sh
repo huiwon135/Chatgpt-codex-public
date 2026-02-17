@@ -1,13 +1,35 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+usage() {
+  cat <<'USAGE'
+Usage:
+  ./scripts/publish_gguf.sh <path-to-gguf> [commit-message] [--push]
+
+Examples:
+  ./scripts/publish_gguf.sh sexygpt-3.5-turbo-uncensored.gguf
+  ./scripts/publish_gguf.sh sexygpt-3.5-turbo-uncensored.gguf "Add GGUF artifact" --push
+USAGE
+}
+
 if [[ $# -lt 1 ]]; then
-  echo "Usage: $0 <path-to-gguf> [commit-message]" >&2
+  usage >&2
   exit 1
 fi
 
 GGUF_PATH="$1"
-COMMIT_MSG="${2:-Add GGUF artifact}"
+shift
+
+COMMIT_MSG="Add GGUF artifact"
+DO_PUSH="false"
+
+for arg in "$@"; do
+  if [[ "$arg" == "--push" ]]; then
+    DO_PUSH="true"
+  else
+    COMMIT_MSG="$arg"
+  fi
+done
 
 if [[ ! -f "$GGUF_PATH" ]]; then
   echo "Error: GGUF file not found: $GGUF_PATH" >&2
@@ -37,21 +59,30 @@ fi
 
 git add .gitattributes "$GGUF_PATH"
 
+echo "\nStaged files:"
+git diff --cached --name-status
+
 if git diff --cached --quiet; then
   echo "No staged changes. Nothing to commit."
 else
   git commit -m "$COMMIT_MSG"
 fi
 
-echo
-echo "Ready to push."
-if git remote get-url origin >/dev/null 2>&1; then
-  CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-  echo "Run: git push -u origin $CURRENT_BRANCH"
-else
-  echo "No origin remote configured."
+echo "\nLFS-tracked files:"
+git lfs ls-files || true
+
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+if ! git remote get-url origin >/dev/null 2>&1; then
+  echo "\nNo origin remote configured."
   echo "Run: git remote add origin <YOUR_GITHUB_REPO_URL>"
-  echo "Then: git push -u origin $(git rev-parse --abbrev-ref HEAD)"
+  echo "Then: git push -u origin $CURRENT_BRANCH"
+  exit 0
 fi
 
-echo "Verify LFS tracking with: git lfs ls-files"
+if [[ "$DO_PUSH" == "true" ]]; then
+  git push -u origin "$CURRENT_BRANCH"
+  echo "\nPush completed."
+else
+  echo "\nReady to push."
+  echo "Run: git push -u origin $CURRENT_BRANCH"
+fi
