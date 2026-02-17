@@ -63,3 +63,28 @@ git lfs ls-files
 git remote -v
 git log --oneline -n 3
 ```
+
+
+### If push is rejected with a missing LFS pointer
+
+If you see an error like:
+
+```text
+Error: Your push was rejected because an LFS pointer pointed to a file that does not exist.
+Offending file: sexygpt-3.5-turbo-uncensored.gguf
+```
+
+Use this recovery flow:
+
+```bash
+# 1) verify local LFS object is present
+git lfs fsck
+
+# 2) upload LFS objects first
+git lfs push origin $(git rev-parse --abbrev-ref HEAD)
+
+# 3) then push git refs
+git push -u origin $(git rev-parse --abbrev-ref HEAD)
+```
+
+The publish helper now does this automatically when you pass `--push`.

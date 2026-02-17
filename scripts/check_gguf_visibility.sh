@@ -35,6 +35,16 @@ else
   echo "⚠️  git-lfs is not installed; cannot verify LFS tracking."
 fi
 
+
+if command -v git-lfs >/dev/null 2>&1; then
+  if git lfs fsck >/dev/null 2>&1; then
+    echo "✅ git lfs fsck passed (local LFS objects are present)."
+  else
+    echo "❌ git lfs fsck failed (missing/corrupt local LFS object)."
+    echo "   Fix: regenerate the GGUF, then run: git add '$GGUF_PATH' && git commit -m 'Re-add GGUF LFS object'"
+  fi
+fi
+
 if git remote get-url origin >/dev/null 2>&1; then
   echo "✅ origin remote: $(git remote get-url origin)"
 else

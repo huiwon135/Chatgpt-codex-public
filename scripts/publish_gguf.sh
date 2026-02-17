@@ -80,9 +80,15 @@ if ! git remote get-url origin >/dev/null 2>&1; then
 fi
 
 if [[ "$DO_PUSH" == "true" ]]; then
+  echo "\nUploading LFS object(s) first..."
+  git lfs push origin "$CURRENT_BRANCH"
+
+  echo "Pushing git refs..."
   git push -u origin "$CURRENT_BRANCH"
   echo "\nPush completed."
 else
   echo "\nReady to push."
-  echo "Run: git push -u origin $CURRENT_BRANCH"
+  echo "Recommended (avoid missing-LFS-pointer errors):"
+  echo "  git lfs push origin $CURRENT_BRANCH"
+  echo "  git push -u origin $CURRENT_BRANCH"
 fi
