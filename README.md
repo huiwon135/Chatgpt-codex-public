@@ -40,6 +40,14 @@ If you omit `--push`, the script still commits and prints the exact push command
 
 ### If GGUF is still not visible on GitHub
 
+
+Quick diagnosis command:
+
+```bash
+./scripts/check_gguf_visibility.sh sexygpt-3.5-turbo-uncensored.gguf
+```
+
+It reports exactly which step is missing (file generation, git add/commit, LFS tracking, origin remote, or push).
 Check these in order:
 
 1. GGUF file exists locally.
