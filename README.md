@@ -40,3 +40,30 @@ git push origin <branch>
 ```
 
 If your remote does not support LFS, upload the GGUF as a GitHub Release asset instead.
+
+
+## Still not visible on GitHub? (Checklist)
+
+If GGUF still does not appear in your GitHub repo, usually one of these is the reason:
+
+1. The GGUF file is not present locally.
+2. The file was not committed.
+3. No `origin` remote is configured.
+4. Push/authentication has not completed.
+
+Quick flow:
+
+```bash
+# from repo root
+./scripts/publish_gguf.sh sexygpt-3.5-turbo-uncensored.gguf "Add GGUF artifact"
+# then push with the printed command
+```
+
+Manual verification commands:
+
+```bash
+git status --short
+git lfs ls-files
+git remote -v
+git log --oneline -n 3
+```
