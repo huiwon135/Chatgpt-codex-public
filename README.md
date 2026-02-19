@@ -55,6 +55,12 @@ python make_sexygpt_turbo_gguf.py \
   --overwrite-merged
 ```
 
+If `./llama.cpp` does not exist yet, you can auto-clone it during the build:
+
+```bash
+python make_sexygpt_turbo_gguf.py --overwrite-merged --clone-llama-cpp-if-missing
+```
+
 ## Large file download helper (ZIP/GGUF)
 
 If branch artifact downloads are unstable, use the retry/resume downloader:

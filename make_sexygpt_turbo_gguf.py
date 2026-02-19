@@ -28,6 +28,26 @@ def _resolve_convert_script(llama_cpp_dir: Path) -> Path:
     return script
 
 
+def _ensure_existing_dir(path: Path, label: str) -> None:
+    if not path.is_dir():
+        raise FileNotFoundError(f"{label} directory not found: {path}")
+
+
+def _maybe_clone_llama_cpp(llama_cpp_dir: Path, clone_if_missing: bool) -> None:
+    if llama_cpp_dir.is_dir():
+        return
+    if not clone_if_missing:
+        raise FileNotFoundError(
+            f"llama.cpp directory not found: {llama_cpp_dir}. "
+            "Pass --clone-llama-cpp-if-missing to clone automatically."
+        )
+
+    subprocess.run(
+        ["git", "clone", "https://github.com/ggerganov/llama.cpp.git", str(llama_cpp_dir)],
+        check=True,
+    )
+
+
 def build_gguf(
     sexygpt_dir: Path,
     turbo_dir: Path,
@@ -36,7 +56,12 @@ def build_gguf(
     llama_cpp_dir: Path,
     outtype: str,
     overwrite_merged: bool,
+    clone_llama_cpp_if_missing: bool,
 ) -> None:
+    _ensure_existing_dir(sexygpt_dir, "sexyGPT-Uncensored")
+    _ensure_existing_dir(turbo_dir, "gpt-3.5-turbo")
+    _maybe_clone_llama_cpp(llama_cpp_dir, clone_llama_cpp_if_missing)
+
     from_src1, from_src2, conflicts = merge_dirs(
         sexygpt_dir, turbo_dir, merged_dir, overwrite_dst=overwrite_merged
     )
@@ -100,6 +125,11 @@ def main() -> None:
         action="store_true",
         help="Overwrite merged directory if it already exists",
     )
+    parser.add_argument(
+        "--clone-llama-cpp-if-missing",
+        action="store_true",
+        help="Clone llama.cpp automatically when --llama-cpp-dir does not exist",
+    )
 
     args = parser.parse_args()
 
@@ -111,6 +141,7 @@ def main() -> None:
         llama_cpp_dir=args.llama_cpp_dir,
         outtype=args.outtype,
         overwrite_merged=args.overwrite_merged,
+        clone_llama_cpp_if_missing=args.clone_llama_cpp_if_missing,
     )
 
 
