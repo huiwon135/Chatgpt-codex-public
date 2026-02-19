@@ -23,4 +23,23 @@ Conflict rule: files from the first folder are kept when both folders contain th
 - The script no longer deletes an existing output directory unless you pass `--overwrite-dst`.
 - If `config.json` and `tokenizer.json` are both present, the script validates tokenizer IDs against `config.vocab_size`.
 - If tokenizer IDs exceed the model vocab size (`max_id >= vocab_size`), it removes `tokenizer.json` and prints a reason to keep GGUF conversion from failing.
-- When no fix is needed (or parsing fails), it reports why the tokenizer fix was skipped.
+- If `added_tokens.json` contains IDs that exceed `config.vocab_size`, it removes `added_tokens.json` and prints a reason to avoid GGUF conversion errors.
+- When no fix is needed (or parsing fails), it reports why tokenizer and added-token fixes were skipped.
+
+## Large file download helper (ZIP/GGUF)
+
+If branch artifact downloads are unstable, use the retry/resume downloader:
+
+```bash
+python download_model_artifact.py <direct_url> <output_file> [--token <HF_TOKEN>]
+```
+
+Example:
+
+```bash
+python download_model_artifact.py \
+  "https://huggingface.co/<repo>/resolve/main/model.gguf?download=true" \
+  ./model.gguf
+```
+
+This helper retries transient failures and resumes partial downloads automatically.
