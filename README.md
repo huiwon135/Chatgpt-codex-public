@@ -26,6 +26,35 @@ Conflict rule: files from the first folder are kept when both folders contain th
 - If `added_tokens.json` contains IDs that exceed `config.vocab_size`, it removes `added_tokens.json` and prints a reason to avoid GGUF conversion errors.
 - When no fix is needed (or parsing fails), it reports why tokenizer and added-token fixes were skipped.
 
+
+## Build sexyGPT-Uncensored as gpt-3.5-turbo GGUF
+
+Use this one-shot helper to merge and convert in one command:
+
+```bash
+python make_sexygpt_turbo_gguf.py --overwrite-merged
+```
+
+Default inputs/outputs:
+- input primary model: `./sexyGPT-Uncensored`
+- input secondary model: `./gpt-3.5-turbo`
+- merged HF dir: `./sexygpt-3.5-turbo-uncensored`
+- output GGUF: `./sexygpt-3.5-turbo-uncensored.gguf`
+- llama.cpp converter path: `./llama.cpp/convert_hf_to_gguf.py`
+
+Example with explicit paths:
+
+```bash
+python make_sexygpt_turbo_gguf.py \
+  --sexygpt-dir /models/sexyGPT-Uncensored \
+  --turbo-dir /models/gpt-3.5-turbo \
+  --merged-dir /models/sexygpt-3.5-turbo-uncensored \
+  --output-gguf /models/sexygpt-3.5-turbo-uncensored-f16.gguf \
+  --llama-cpp-dir /workspace/llama.cpp \
+  --outtype f16 \
+  --overwrite-merged
+```
+
 ## Large file download helper (ZIP/GGUF)
 
 If branch artifact downloads are unstable, use the retry/resume downloader:
