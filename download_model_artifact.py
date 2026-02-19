@@ -29,6 +29,42 @@ def _remote_size(url: str, headers: dict[str, str]) -> int | None:
         return None
 
 
+def _download_once(url: str, out: Path, headers: dict[str, str], expected_size: int | None) -> bool:
+    """Download once, returning True if completed.
+
+    Handles resume logic safely even when server ignores Range requests.
+    """
+    current_size = out.stat().st_size if out.exists() else 0
+    req_headers = dict(headers)
+    requested_resume = current_size > 0
+    if requested_resume:
+        req_headers["Range"] = f"bytes={current_size}-"
+
+    req = urllib.request.Request(url, headers=req_headers)
+    with urllib.request.urlopen(req, timeout=60) as response:
+        status = getattr(response, "status", response.getcode())
+
+        # If we requested resume but server returned full body, start from scratch.
+        mode = "ab"
+        if requested_resume and status == 200:
+            mode = "wb"
+        elif not requested_resume:
+            mode = "wb"
+
+        with out.open(mode) as fp:
+            while True:
+                chunk = response.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                fp.write(chunk)
+
+    final_size = out.stat().st_size
+    if expected_size is None:
+        # Without a known size, treat non-empty file as success.
+        return final_size > 0
+    return final_size >= expected_size
+
+
 def download_with_resume(url: str, out: Path, *, token: str | None, retries: int, backoff_sec: float) -> None:
     headers = {"User-Agent": "codex-downloader/1.0"}
     if token:
@@ -39,34 +75,25 @@ def download_with_resume(url: str, out: Path, *, token: str | None, retries: int
     expected_size = _remote_size(url, headers)
 
     for attempt in range(1, retries + 1):
-        current_size = out.stat().st_size if out.exists() else 0
-        req_headers = dict(headers)
-        mode = "wb"
-        if current_size > 0:
-            req_headers["Range"] = f"bytes={current_size}-"
-            mode = "ab"
-
-        req = urllib.request.Request(url, headers=req_headers)
         try:
-            with urllib.request.urlopen(req, timeout=60) as response, out.open(mode) as fp:
-                while True:
-                    chunk = response.read(CHUNK_SIZE)
-                    if not chunk:
-                        break
-                    fp.write(chunk)
-
-            final_size = out.stat().st_size
-            if expected_size is None or final_size >= expected_size:
+            done = _download_once(url, out, headers, expected_size)
+            if done:
                 return
-            raise RuntimeError(
-                f"download incomplete: expected {expected_size} bytes, got {final_size} bytes"
-            )
+            raise RuntimeError("download incomplete")
+        except urllib.error.HTTPError as exc:
+            # If file is already complete and server returns 416 on resume,
+            # accept existing file when its size matches expectation.
+            if exc.code == 416 and expected_size is not None and out.exists() and out.stat().st_size >= expected_size:
+                return
+            if attempt == retries:
+                raise RuntimeError(f"download failed after {retries} attempts: {exc}") from exc
         except (urllib.error.URLError, TimeoutError, OSError, RuntimeError) as exc:
             if attempt == retries:
                 raise RuntimeError(f"download failed after {retries} attempts: {exc}") from exc
-            sleep_for = backoff_sec * (2 ** (attempt - 1))
-            print(f"Attempt {attempt}/{retries} failed: {exc}. Retrying in {sleep_for:.1f}s...")
-            time.sleep(sleep_for)
+
+        sleep_for = backoff_sec * (2 ** (attempt - 1))
+        print(f"Attempt {attempt}/{retries} failed. Retrying in {sleep_for:.1f}s...")
+        time.sleep(sleep_for)
 
 
 def main() -> None:

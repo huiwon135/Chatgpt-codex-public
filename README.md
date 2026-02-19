@@ -42,4 +42,4 @@ python download_model_artifact.py \
   ./model.gguf
 ```
 
-This helper retries transient failures and resumes partial downloads automatically.
+This helper retries transient failures, resumes partial downloads automatically, and safely restarts when a server ignores `Range` requests.
