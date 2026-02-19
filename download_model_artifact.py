@@ -10,6 +10,7 @@ Features:
 from __future__ import annotations
 
 import argparse
+import re
 import time
 import urllib.error
 import urllib.request
@@ -17,6 +18,7 @@ from pathlib import Path
 
 
 CHUNK_SIZE = 1024 * 1024  # 1 MiB
+CONTENT_RANGE_RE = re.compile(r"^bytes\s+(\d+)-(\d+)/(\d+|\*)$")
 
 
 def _remote_size(url: str, headers: dict[str, str]) -> int | None:
@@ -29,12 +31,32 @@ def _remote_size(url: str, headers: dict[str, str]) -> int | None:
         return None
 
 
+def _parse_content_range_start(value: str | None) -> int | None:
+    if not value:
+        return None
+
+    matched = CONTENT_RANGE_RE.match(value.strip())
+    if not matched:
+        return None
+
+    try:
+        return int(matched.group(1))
+    except ValueError:
+        return None
+
+
 def _download_once(url: str, out: Path, headers: dict[str, str], expected_size: int | None) -> bool:
     """Download once, returning True if completed.
 
     Handles resume logic safely even when server ignores Range requests.
     """
     current_size = out.stat().st_size if out.exists() else 0
+    if expected_size is not None and current_size == expected_size:
+        return True
+    if expected_size is not None and current_size > expected_size:
+        out.unlink()
+        current_size = 0
+
     req_headers = dict(headers)
     requested_resume = current_size > 0
     if requested_resume:
@@ -43,10 +65,13 @@ def _download_once(url: str, out: Path, headers: dict[str, str], expected_size: 
     req = urllib.request.Request(url, headers=req_headers)
     with urllib.request.urlopen(req, timeout=60) as response:
         status = getattr(response, "status", response.getcode())
+        content_range_start = _parse_content_range_start(response.headers.get("Content-Range"))
 
         # If we requested resume but server returned full body, start from scratch.
         mode = "ab"
         if requested_resume and status == 200:
+            mode = "wb"
+        elif requested_resume and status == 206 and content_range_start != current_size:
             mode = "wb"
         elif not requested_resume:
             mode = "wb"
@@ -62,7 +87,7 @@ def _download_once(url: str, out: Path, headers: dict[str, str], expected_size: 
     if expected_size is None:
         # Without a known size, treat non-empty file as success.
         return final_size > 0
-    return final_size >= expected_size
+    return final_size == expected_size
 
 
 def download_with_resume(url: str, out: Path, *, token: str | None, retries: int, backoff_sec: float) -> None:
@@ -83,7 +108,7 @@ def download_with_resume(url: str, out: Path, *, token: str | None, retries: int
         except urllib.error.HTTPError as exc:
             # If file is already complete and server returns 416 on resume,
             # accept existing file when its size matches expectation.
-            if exc.code == 416 and expected_size is not None and out.exists() and out.stat().st_size >= expected_size:
+            if exc.code == 416 and expected_size is not None and out.exists() and out.stat().st_size == expected_size:
                 return
             if attempt == retries:
                 raise RuntimeError(f"download failed after {retries} attempts: {exc}") from exc
