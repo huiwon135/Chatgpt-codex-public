@@ -1,0 +1,75 @@
+name: Build GGUF with llama.cpp
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-gguf:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install torch transformers safetensors numpy huggingface-hub
+          git clone https://github.com/ggerganov/llama.cpp.git
+          cd llama.cpp && pip install -e .
+
+      - name: Download and merge models
+        run: |
+          python3 << 'EOF'
+          import os
+          from huggingface_hub import snapshot_download
+          
+          print("Downloading sexyGPT-Uncensored...")
+          model1_path = snapshot_download(repo_id="ross-dev/sexyGPT-Uncensored", cache_dir="./models")
+          
+          print("Downloading gpt-3.5-turbo...")
+          model2_path = snapshot_download(repo_id="Xenova/gpt-3.5-turbo", cache_dir="./models")
+          
+          print(f"Model 1: {model1_path}")
+          print(f"Model 2: {model2_path}")
+          
+          os.system(f"python merge_hf_model_dirs.py {model1_path} {model2_path} ./merged_model --overwrite-dst")
+          EOF
+
+      - name: Convert to GGUF
+        run: |
+          cd llama.cpp
+          python3 convert.py ../merged_model --outfile ../sexygpt-3.5-turbo-uncensored.gguf
+
+      - name: Quantize to Q4_K_M
+        run: |
+          cd llama.cpp
+          ./quantize ../sexygpt-3.5-turbo-uncensored.gguf ../sexygpt-3.5-turbo-uncensored-Q4_K_M.gguf Q4_K_M
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: gguf-model
+          path: sexygpt-3.5-turbo-uncensored-Q4_K_M.gguf
+
+      - name: Commit and push
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git lfs install
+          git add sexygpt-3.5-turbo-uncensored-Q4_K_M.gguf
+          git commit -m "Add GGUF: sexygpt-3.5-turbo-uncensored-Q4_K_M" || echo "No changes"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
