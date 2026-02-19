@@ -23,4 +23,5 @@ Conflict rule: files from the first folder are kept when both folders contain th
 - The script no longer deletes an existing output directory unless you pass `--overwrite-dst`.
 - If `config.json` and `tokenizer.json` are both present, the script validates tokenizer IDs against `config.vocab_size`.
 - If tokenizer IDs exceed the model vocab size (`max_id >= vocab_size`), it removes `tokenizer.json` and prints a reason to keep GGUF conversion from failing.
+- If `added_tokens.json` contains IDs that exceed `config.vocab_size`, it removes `added_tokens.json` and prints a reason to avoid GGUF conversion errors.
 - When no fix is needed (or parsing fails), it reports why the tokenizer fix was skipped.
