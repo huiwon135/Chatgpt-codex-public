@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: gpt-server-api
+    runtime: docker
+    repo: https://github.com/${RENDER_GIT_REPO}
+    branch: main
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SERVER_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        sync: false
