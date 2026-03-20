@@ -1,0 +1,110 @@
+openapi: 3.1.0
+info:
+  title: CustomGPT OpenAI-Compatible API
+  version: 1.0.0
+servers:
+  - url: https://example.com
+paths:
+  /health:
+    get:
+      operationId: health
+      responses:
+        '200':
+          description: OK
+  /v1/models:
+    get:
+      operationId: listModels
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: OpenAI model list
+  /v1/chat/completions:
+    post:
+      operationId: createChatCompletion
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                      content: {}
+                  minItems: 1
+                temperature:
+                  type: number
+                max_tokens:
+                  type: integer
+                user:
+                  type: string
+              required: [messages]
+      responses:
+        '200':
+          description: Chat completion response
+  /v1/completions:
+    post:
+      operationId: createCompletion
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                prompt: {}
+                temperature:
+                  type: number
+                max_tokens:
+                  type: integer
+                user:
+                  type: string
+              required: [prompt]
+      responses:
+        '200':
+          description: Legacy completion response
+  /v1/responses:
+    post:
+      operationId: createResponse
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                input: {}
+                temperature:
+                  type: number
+                max_output_tokens:
+                  type: integer
+                user:
+                  type: string
+              required: [input]
+      responses:
+        '200':
+          description: Responses API style response
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
